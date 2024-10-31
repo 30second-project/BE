@@ -41,13 +41,13 @@ public class S3Controller {
         return ResponseEntity.ok(videos);
     }
 
-    // 비디오 업로드 및 제출 생성
     @PostMapping("/upload")
     public ResponseEntity<List<VideoDTO>> uploadMultipleVideosAndCreateSubmissions(
             @RequestParam("memberId") String memberId,
             @RequestParam("userName") String userName,
             @RequestParam("contact") String contact, // 연락처 추가
             @RequestPart("files") List<MultipartFile> files,
+            @RequestPart(value = "Thumbnail", required = false) List<MultipartFile> thumbnails, // 썸네일 목록
             @RequestParam("videoDTOList") String videoDTOListJson) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -59,6 +59,7 @@ public class S3Controller {
                 MultipartFile file = files.get(i);
                 VideoDTO videoDTO = videoDTOList.get(i);
 
+                // 비디오 파일을 S3에 업로드
                 String fileName = file.getOriginalFilename();
                 String fileUrl = "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + fileName;
                 ObjectMetadata metadata = new ObjectMetadata();
@@ -66,16 +67,29 @@ public class S3Controller {
                 metadata.setContentLength(file.getSize());
                 amazonS3Client.putObject(bucket, fileName, file.getInputStream(), metadata);
 
-                // 현재 시간을 한국 시간대(KST)로 저장
+                // 썸네일 파일이 존재하는 경우에만 업로드
+                String thumbnailUrl = null; // 썸네일 URL 초기화
+                if (thumbnails != null && i < thumbnails.size()) {
+                    MultipartFile thumbnail = thumbnails.get(i); // 해당 비디오의 썸네일
+                    String thumbnailFileName = "thumbnail_" + fileName;
+                    thumbnailUrl = "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + thumbnailFileName;
+                    ObjectMetadata thumbnailMetadata = new ObjectMetadata();
+                    thumbnailMetadata.setContentType(thumbnail.getContentType());
+                    thumbnailMetadata.setContentLength(thumbnail.getSize());
+                    amazonS3Client.putObject(bucket, thumbnailFileName, thumbnail.getInputStream(), thumbnailMetadata);
+                }
+
+                // 제출 시간 한국 시간대(KST)로 저장
                 ZonedDateTime submissionTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
                 System.out.println("제출 시간: " + submissionTime);
 
-                // 비디오 업로드 및 정보 저장
+                // 비디오 및 썸네일 URL 정보 설정 및 저장
                 videoDTO.setVideoUrl(fileUrl);
-                videoDTO.setMemberId(memberId); // 연락처 설정
-                videoDTO.setUserName(userName); // 연락처 설정
-                videoDTO.setContact(contact); // 연락처 설정
-                VideoDTO uploadedVideo = videoService.uploadVideo(memberId, userName, contact,videoDTO);
+                videoDTO.setThumbnailUrl(thumbnailUrl); // 썸네일 URL 설정
+                videoDTO.setMemberId(memberId);
+                videoDTO.setUserName(userName);
+                videoDTO.setContact(contact);
+                VideoDTO uploadedVideo = videoService.uploadVideo(memberId, userName, contact, videoDTO);
                 uploadedVideos.add(uploadedVideo);
             }
 
@@ -86,45 +100,6 @@ public class S3Controller {
         }
     }
 
-
-
-//    @PostMapping
-//    public ResponseEntity<List<VideoDTO>> uploadMultipleVideosAndCreateSubmissions(
-//            @RequestPart(value = "memberId", required = false) String memberId,
-//            @RequestPart(value = "userName", required = false) String userName,
-//            @RequestPart("files") List<MultipartFile> files,
-//            @RequestPart("videoDTOList") List<VideoDTO> videoDTOList) {
-//        try {
-//            List<VideoDTO> uploadedVideos = new ArrayList<>();
-//
-//            for (int i = 0; i < files.size(); i++) {
-//                MultipartFile file = files.get(i);
-//                VideoDTO videoDTO = videoDTOList.get(i);
-//
-//                // S3에 파일 업로드
-//                String fileName = file.getOriginalFilename();
-//                String fileUrl = "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + fileName;
-//                ObjectMetadata metadata = new ObjectMetadata();
-//                metadata.setContentType(file.getContentType());
-//                metadata.setContentLength(file.getSize());
-//                amazonS3Client.putObject(bucket, fileName, file.getInputStream(), metadata);
-//
-//
-//                // 비디오 업로드 및 정보 저장
-//                videoDTO.setVideoUrl(fileUrl); // URL 설정
-//                videoDTO.setMember(memberId); // 멤버 ID 설정 (있을 경우)
-//                videoDTO.setMemberName(userName); // 사용자 이름 설정 (있을 경우)
-//
-//                VideoDTO uploadedVideo = videoService.uploadVideo(videoDTO);
-//                uploadedVideos.add(uploadedVideo); // 리스트에 추가
-//            }
-//
-//            return ResponseEntity.ok(uploadedVideos);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//        }
-//    }
 
     // 제출 목록 전체 조회
     @GetMapping("/submissions")
@@ -213,3 +188,40 @@ public class S3Controller {
 
 }
 
+//    @PostMapping
+//    public ResponseEntity<List<VideoDTO>> uploadMultipleVideosAndCreateSubmissions(
+//            @RequestPart(value = "memberId", required = false) String memberId,
+//            @RequestPart(value = "userName", required = false) String userName,
+//            @RequestPart("files") List<MultipartFile> files,
+//            @RequestPart("videoDTOList") List<VideoDTO> videoDTOList) {
+//        try {
+//            List<VideoDTO> uploadedVideos = new ArrayList<>();
+//
+//            for (int i = 0; i < files.size(); i++) {
+//                MultipartFile file = files.get(i);
+//                VideoDTO videoDTO = videoDTOList.get(i);
+//
+//                // S3에 파일 업로드
+//                String fileName = file.getOriginalFilename();
+//                String fileUrl = "https://" + bucket + ".s3.ap-northeast-2.amazonaws.com/" + fileName;
+//                ObjectMetadata metadata = new ObjectMetadata();
+//                metadata.setContentType(file.getContentType());
+//                metadata.setContentLength(file.getSize());
+//                amazonS3Client.putObject(bucket, fileName, file.getInputStream(), metadata);
+//
+//
+//                // 비디오 업로드 및 정보 저장
+//                videoDTO.setVideoUrl(fileUrl); // URL 설정
+//                videoDTO.setMember(memberId); // 멤버 ID 설정 (있을 경우)
+//                videoDTO.setMemberName(userName); // 사용자 이름 설정 (있을 경우)
+//
+//                VideoDTO uploadedVideo = videoService.uploadVideo(videoDTO);
+//                uploadedVideos.add(uploadedVideo); // 리스트에 추가
+//            }
+//
+//            return ResponseEntity.ok(uploadedVideos);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+//        }
+//    }
