@@ -13,7 +13,7 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
 
     // Member 이름으로 비디오 검색
     @Query("SELECT v FROM Video v WHERE v.member.userName LIKE %?1%")
-    List<Video> findByMemberNameContaining(String name);
+    List<Video> findByMemberNameContaining(String userName);
 
     // Member ID로 비디오 검색
     @Query("SELECT v FROM Video v WHERE v.member.memberId LIKE %?1%")

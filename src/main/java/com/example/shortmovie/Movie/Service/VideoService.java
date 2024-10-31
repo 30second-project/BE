@@ -34,22 +34,21 @@ public class VideoService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
-    // Method to get filtered submissions based on keyword and category
     public List<VideoDTO> getFilteredSubmissions(String keyword, String category) {
         List<Video> videos;
 
         switch (category) {
             case "title":
-                videos = videoRepository.findByTitleContaining(keyword); // Assuming a method to find by title exists
+                videos = videoRepository.findByTitleContaining(keyword);
                 break;
             case "memberId":
-                videos = videoRepository.findByMemberIdContaining(keyword); // Assuming this method already exists
+                videos = videoRepository.findByMemberIdContaining(keyword);
                 break;
-            case "userName":
-                videos = videoRepository.findByUserNameContaining(keyword); // Assuming you add this method
+            case "userName": // 회원 이름에 대한 검색 로직 추가
+                videos = videoRepository.findByMemberNameContaining(keyword);
                 break;
             default:
-                videos = videoRepository.findAll(); // Fallback to get all videos
+                videos = videoRepository.findAll();
                 break;
         }
 
